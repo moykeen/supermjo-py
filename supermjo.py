@@ -31,7 +31,7 @@ class _MxAppleScript (applescript.AppleScript):
 
 
 _import_autox_cmd = """
-on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list}
+on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -41,13 +41,13 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importWithAutoX importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list
+importWithAutoX importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list
 end tell
 end run
 """
 
 _import_vsfirst_cmd = """
-on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list}
+on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -57,13 +57,13 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importVSFirst importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list
+importVSFirst importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list
 end tell
 end run
 """
 
 _import_asmulticol_cmd = """
-on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list}
+on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -73,7 +73,7 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list
+importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list
 end tell
 end run
 """
@@ -173,7 +173,13 @@ def _make_additional_params(param_dict, n_col):
     else:
         sizes = [1] * n_col
 
-    return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes
+    if "ids" in param_dict:
+        ids = param_dict["ids"]
+        assert len(ids) == n_col
+    else:
+        ids = [-1] * n_col
+
+    return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids
 
 
 def _plot_np(x, **param_dict):
@@ -213,14 +219,14 @@ def _plot_np(x, **param_dict):
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
         # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
     _MxAppleScript(_import_autox_cmd).run(activation, x.T, labels,
                     xcoords, ycoords, colors, styles, dashes, shapes,
-                    lines, marks, sizes)
+                    lines, marks, sizes, ids)
 
 def _plot_np_twoarg(x, y, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
@@ -272,14 +278,14 @@ def _plot_np_twoarg(x, y, **param_dict):
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
         # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
     _MxAppleScript(_import_vsfirst_cmd).run(activation, x.T, labels,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes)
+        lines, marks, sizes, ids)
 
 def _plot_np_asmulti(x, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
@@ -310,14 +316,14 @@ def _plot_np_asmulti(x, **param_dict):
         args = arg_string[arg_string.find('(') + 1:-1].split(',')
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, 1)
-    
+
 
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, x.T, n_col, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes)
+        lines, marks, sizes, ids)
 
 
 def _plot_pd(x, **param_dict):
@@ -356,13 +362,13 @@ def _plot_pd(x, **param_dict):
         base_label = args[0]
         labels = [base_label + ", " + str(col) for col in x.columns]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     _MxAppleScript(_import_vsfirst_cmd).run(activation, y.T, labels,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes)
+        lines, marks, sizes, ids)
 
 
 def _plot_pd_asmulti(x, **param_dict):
@@ -401,13 +407,13 @@ def _plot_pd_asmulti(x, **param_dict):
         args = arg_string[arg_string.find('(') + 1:-1].split(',')
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, 1)
 
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, y.T, n_col+1, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes)
+        lines, marks, sizes, ids)
 
 
 def clear():
