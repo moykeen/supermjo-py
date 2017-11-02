@@ -106,7 +106,7 @@ end run
 """
 
 # default col check threshold
-_col_check_default_th = 10
+_col_check_default_th = 128
 
 #%% functions
 
@@ -114,7 +114,8 @@ _col_check_default_th = 10
 def _col_check(n_col, too_many_col_check):
     if too_many_col_check and (n_col >= too_many_col_check):
         raise ValueError("""
-Your array has %d columns. Haven't you mistaken row and colum?
+Your array has a very large number of columns (%d columns).
+Haven't you mistaken row and colum?
 If this is as you intended, invoke with too_many_col_check=False""" % (n_col))
 
 # include into a list if the arg is scalar
@@ -438,6 +439,9 @@ def close(fig_id=0):
 
 
 def plot(x, y=None, single_series=False, **param_dict):
+
+    if len(x) == 0:
+        raise ValueError("Can't plot an empty array")
 
     # preprocessing to unify types
     if type(x) == pd.Series:
