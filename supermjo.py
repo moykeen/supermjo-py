@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 import applescript
 import inspect
+from functools import wraps
 
-#%%
+#%% define applescript commands
 
 # to deal with huge array efficiently
 class _MxCodecs (applescript.Codecs):
@@ -63,7 +64,7 @@ end run
 """
 
 _import_asmulticol_cmd = """
-on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list}
+on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, assignment_dict}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -73,7 +74,7 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list
+importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list assignment assignment_dict
 end tell
 end run
 """
@@ -108,7 +109,7 @@ end run
 # default col check threshold
 _col_check_default_th = 128
 
-#%% functions
+#%% utility functions
 
 # check if column is accidently huge
 def _col_check(n_col, too_many_col_check):
@@ -124,6 +125,16 @@ def _force_to_list(scalar_or_list):
         return scalar_or_list
     else:
         return [scalar_or_list]
+
+# interpret codes
+_single_color_codes = {'r':0, 'b':1, 'g':2, 'p':3, 'o':4, 'c':5, 'y':6, 'n':7, 'm':8, 'e':9}
+_single_shape_codes = {'o':0, 's':1, '^':2, 'v':3, 'd':4, '*':5, 'x':6, '+':7}
+_line_dash_codes = {'-':0, '..':1, '--':2, '-.':3, '.. ..':4, '- -':5}
+def _interpret_code(mixed_raw_and_coded_list, code_dict):
+    for i in range(len(mixed_raw_and_coded_list)):
+        if isinstance(mixed_raw_and_coded_list[i], str):
+            mixed_raw_and_coded_list[i] = code_dict.get(colors[i], 0)
+    return mixed_raw_and_coded_list
 
 # make additional parameters
 def _make_additional_params(param_dict, n_col):
@@ -144,6 +155,7 @@ def _make_additional_params(param_dict, n_col):
         assert len(colors) == n_col
     else:
         colors = [-1] * n_col
+    colors = _interpret_code(colors, _single_color_codes)
 
     if "style" in param_dict:
         styles = _force_to_list(param_dict["style"])
@@ -156,12 +168,14 @@ def _make_additional_params(param_dict, n_col):
         assert len(dashes) == n_col
     else:
         dashes = [0] * n_col
+    dashes = _interpret_code(dashes, _line_dash_codes)
 
     if "shape" in param_dict:
         shapes = _force_to_list(param_dict["shape"])
         assert len(shapes) == n_col
     else:
         shapes = [0] * n_col
+    shapes = _interpret_code(shapes, _single_shape_codes)
 
     if "line" in param_dict:
         lines = _force_to_list(param_dict["line"])
@@ -189,6 +203,17 @@ def _make_additional_params(param_dict, n_col):
 
     return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids
 
+# decorator to validate figure id
+def _fig_id_check(func):
+    @wraps(func)
+    def wrapper(fig_id):
+        if type(fig_id) != int:
+            raise ValueError("figure id must be integer")
+        return func(fig_id)
+    return wrapper
+
+
+#%% internal functions that actually perform plot
 
 def _plot_np(x, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
@@ -327,11 +352,16 @@ def _plot_np_asmulti(x, **param_dict):
     xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, 1)
 
+    # column assignment
+    assignment = param_dict.get("assignment")
+    assignment_list = []
+    for k, v in assignment.items():
+        assignment_list.extend([k, v])
 
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, x.T, n_col, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids)
+        lines, marks, sizes, ids, assignment_list)
 
 
 def _plot_pd(x, **param_dict):
@@ -418,30 +448,60 @@ def _plot_pd_asmulti(x, **param_dict):
     xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
                                 = _make_additional_params(param_dict, 1)
 
+    # column assignment
+    assignment = param_dict.get("assignment")
+    assignment_list = []
+    for k, v in assignment.items():
+        if v == "index":
+            v_num = 0
+        else:
+            v_num = x.columns.get_loc(v) + 1 if isinstance(v, str) else v
+        assignment_list.extend([k, v_num])
+
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, y.T, n_col+1, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids)
+        lines, marks, sizes, ids, assignment_list)
 
+#%% public functions
 
 def clear():
+    """
+    Clear all of the imported series' from the frontmost figure.
+    """
     _MxAppleScript(_clear_cmd).run()
 
+@_fig_id_check
 def figure(fig_id=0):
-    if type(fig_id) != int:
-        raise ValueError("figure id must be integer")
+    """
+    Open a new figure window, or bring to front the existing figure.
+    If the arg is zero or not specified,
+    a new figure with an automatically assigned figure ID is going to open.
+    :param int fig_id: figure ID (0 or 1 to 1023)
+    """
     _MxAppleScript(_figure_cmd).run(fig_id)
 
+@_fig_id_check
 def close(fig_id=0):
-    if type(fig_id) != int:
-        raise ValueError("figure id must be integer")
+    """
+    Close a figure window.
+    If the arg is zero or not specified, the frontmost window is going to be closed.
+    If the arg is -1, all of the existing figures are going to be closed.
+    :param int fig_id: figure ID (-1, 0, or 1 to 1023)
+    """
     _MxAppleScript(_close_cmd).run(fig_id)
 
 
 def plot(x, y=None, single_series=False, **param_dict):
+    """
+    Plot the given data in the frontmost figure.
+    """
 
     if len(x) == 0:
         raise ValueError("Can't plot an empty array")
+
+    if "assignment" in param_dict:
+        single_series = True
 
     # preprocessing to unify types
     if type(x) == pd.Series:
@@ -517,5 +577,13 @@ if False:
     bubble = bubble.ravel()
 
     plot(np.stack((x1, y1, bubble, strength)).T, single_series=True)
+
+    x = np.random.randn(10, 4)
+    plot(x, assignment={"mainX": 0, "mainY": 1, "bubbleRadius": 2}, style="color-bubble")
+
+    xpd = pd.DataFrame(x, columns=["aa", "bb", "cc", "dd"])
+    plot(xpd, color=10, assignment={"mainX": "index", "mainY": "bb", "bubbleRadius": 2, "colorStrength": "dd"}, style="bubble")
+
+
     # plot(x1, np.stack((x1, y1, strength)).T)
     # plot(np., is_single_series=True)
