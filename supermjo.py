@@ -353,7 +353,7 @@ def _plot_np_asmulti(x, **param_dict):
                                 = _make_additional_params(param_dict, 1)
 
     # column assignment
-    assignment = param_dict.get("assignment")
+    assignment = param_dict.get("assignment", {})
     assignment_list = []
     for k, v in assignment.items():
         assignment_list.extend([k, v])
@@ -449,7 +449,7 @@ def _plot_pd_asmulti(x, **param_dict):
                                 = _make_additional_params(param_dict, 1)
 
     # column assignment
-    assignment = param_dict.get("assignment")
+    assignment = param_dict.get("assignment", {})
     assignment_list = []
     for k, v in assignment.items():
         if v == "index":
