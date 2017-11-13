@@ -206,7 +206,7 @@ def _make_additional_params(param_dict, n_col):
 # decorator to validate figure id
 def _fig_id_check(func):
     @wraps(func)
-    def wrapper(fig_id):
+    def wrapper(fig_id=0):
         if type(fig_id) != int:
             raise ValueError("figure id must be integer")
         return func(fig_id)
