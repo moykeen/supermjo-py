@@ -133,7 +133,7 @@ _line_dash_codes = {'-':0, '..':1, '--':2, '-.':3, '.. ..':4, '- -':5}
 def _interpret_code(mixed_raw_and_coded_list, code_dict):
     for i in range(len(mixed_raw_and_coded_list)):
         if isinstance(mixed_raw_and_coded_list[i], str):
-            mixed_raw_and_coded_list[i] = code_dict.get(colors[i], 0)
+            mixed_raw_and_coded_list[i] = code_dict.get(mixed_raw_and_coded_list[i], 0)
     return mixed_raw_and_coded_list
 
 # make additional parameters
