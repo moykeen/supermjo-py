@@ -1,8 +1,8 @@
 # supermjo-py
 
-Python interface to [Super-Mjograph](http://www.mjograph.net/).
-You can use it as an alternative to matplotlib.
-Although the functionality is not fully comparable to matplotlib, it offers to easily create publication-quality charts, by leveraging the rich GUI of macOS-native application.
+Python interface to [Super-Mjograph](http://www.mjograph.net/), which you can use as an alternative to matplotlib.
+In terms of 2D plot, it is fully competent for data science, even though it does not support 3D functionality.
+You can easily create publication-quality charts, by leveraging the rich GUI of macOS-native application.
 
 ![screen shot](ex1.gif)
 
@@ -15,17 +15,16 @@ But as of now, manually install by doing
 
 
 
-## Usage example
+## Example
 
-Assume you have launched SuperMjograph.app manually. Then,
 ```python:sample
 import supermjo as mjo
 import numpy as np
 
 x = np.random.randn(100)
-# mjo.figure() # if a window does not automatically appear
 mjo.plot(x)
 ```
+Note that you need to launch SuperMjograph.app manually before invoking the plot command.
 
 
 The argument accepts
@@ -46,6 +45,4 @@ Documented in https://github.com/moykeen/supermjo-doc/wiki/Scripting
 
 ## Development phase
 
-I myself heavily use this module for machine learning.
-In my environment, it works stably.
-However, note that Super-Mjograph itself has not reached a stable release, which means this python interface can also be nontrivially changed.
+I myself heavily use this module for machine learning. In my environment, it works stably.
