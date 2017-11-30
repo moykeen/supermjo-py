@@ -221,12 +221,9 @@ def _fig_id_check(func):
 
 #&& For numpy
 
-def _plot_np(x, **param_dict):
+def _plot_np(x, activation, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
     assert x.ndim <= 2, "high dimensional array is not supported"
-
-    # additional parameter check
-    activation = param_dict.get("activation", False)
 
     # check size
     if x.ndim == 1:
@@ -273,20 +270,11 @@ def _plot_np(x, **param_dict):
                     xcoords, ycoords, colors, styles, dashes, shapes,
                     lines, marks, sizes, ids, mappings)
 
-def _plot_np_twoarg(x, y, **param_dict):
+def _plot_np_twoarg(x, y, activation, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
     assert type(y) == np.ndarray, "only support Numpy ndarray"
     assert x.ndim <= 2, "high dimensional array is not supported"
     assert y.ndim <= 2, "high dimensional array is not supported"
-
-    # additional parameter check
-    activation = param_dict.get("activation", False)
-
-    # # data must be float
-    # if x.dtype != np.float:
-    #     x = x.astype(np.float)
-    # if y.dtype != np.float:
-    #     y = y.astype(np.float)
 
     # check size
     n_row_ind = len(x)
@@ -325,9 +313,6 @@ def _plot_np_twoarg(x, y, **param_dict):
 
     x = np.concatenate((x, y), axis=1)
 
-    # print(x)
-    # print(mappings)
-
 
     # make labels for legend
     if "label" in param_dict:
@@ -356,11 +341,8 @@ def _plot_np_twoarg(x, y, **param_dict):
         xcoords, ycoords, colors, styles, dashes, shapes,
         lines, marks, sizes, ids, mappings)
 
-def _plot_np_asmulti(x, **param_dict):
+def _plot_np_asmulti(x, activation, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
-
-    # additional parameter check
-    activation = param_dict.get("activation", False)
 
     # check size
     if x.ndim == 1:
@@ -408,11 +390,8 @@ def _plot_np_asmulti(x, **param_dict):
 
 #&& For pandas
 
-def _plot_pd(x, **param_dict):
+def _plot_pd(x, activation, **param_dict):
     assert type(x) == pd.DataFrame, "support only Pandas DataFrame"
-
-    # additional parameter check
-    activation = param_dict.get("activation", False)
 
     # make equivalent numpy array index for datetime, non-numerical values
     mappings = []
@@ -438,11 +417,7 @@ def _plot_pd(x, **param_dict):
         else:
             mappings += [[]]
 
-    # print(xv)
-    # print(mappings)
-
     # combine
-    # y = np.concatenate((alt_index[:, np.newaxis], x.values), axis=1)
     y = np.concatenate((alt_index[:, np.newaxis], xv), axis=1)
 
 
@@ -476,11 +451,8 @@ def _plot_pd(x, **param_dict):
         lines, marks, sizes, ids, mappings)
 
 
-def _plot_pd_asmulti(x, **param_dict):
+def _plot_pd_asmulti(x, activation, **param_dict):
     assert type(x) == pd.DataFrame, "support only Pandas DataFrame"
-
-    # additional parameter check
-    activation = param_dict.get("activation", False)
 
     # make equivalent numpy array index for datetime, non-numerical values
     mappings = []
@@ -508,15 +480,6 @@ def _plot_pd_asmulti(x, **param_dict):
 
     # combine
     y = np.concatenate((alt_index[:, np.newaxis], xv), axis=1)
-
-    # # make equivalent numpy array
-    # if type(x.index) == pd.DatetimeIndex:
-    #     y = np.concatenate((np.array(x.index.astype(np.int64) // 10**9)
-    #             [:, np.newaxis], x.values), axis=1)
-    #
-    # else:
-    #     # x.index.astype(np.int64)
-    #     y = np.concatenate((np.array(x.index)[:, np.newaxis], x.values), axis=1)
 
     # data must be float
     if y.dtype != np.float:
@@ -586,7 +549,7 @@ def close(fig_id=0):
     _MxAppleScript(_close_cmd).run(fig_id)
 
 
-def plot(x, y=None, single_series=False, **param_dict):
+def plot(x, y=None, single_series=False, activation=False, **param_dict):
     """
     Plot the given data in the frontmost figure.
     """
@@ -614,24 +577,24 @@ def plot(x, y=None, single_series=False, **param_dict):
     if single_series:
         assert y == None
         if type(x) == np.ndarray:
-            _plot_np_asmulti(x, **param_dict)
+            _plot_np_asmulti(x, activation, **param_dict)
         elif type(x) == pd.DataFrame:
-            _plot_pd_asmulti(x, **param_dict)
+            _plot_pd_asmulti(x, activation, **param_dict)
 
         return
 
     if type(x) == np.ndarray:
         # if y is given, y is plotted vs. x, else x is plotted vs. the array's indices
         if y is not None and type(y) == np.ndarray:
-            _plot_np_twoarg(x, y, **param_dict)
+            _plot_np_twoarg(x, y, activation, **param_dict)
         else:
-            _plot_np(x, **param_dict)
+            _plot_np(x, activation, **param_dict)
 
         return
 
     elif type(x) == pd.DataFrame:
         # plot contents vs. the dataframe's index
-        _plot_pd(x, **param_dict)
+        _plot_pd(x, activation, **param_dict)
 
         return
 
