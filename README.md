@@ -7,12 +7,12 @@ You can easily create publication-quality charts, by leveraging the rich GUI of 
 ![screen shot](ex1.gif)
 
 ## Installation
-I will distribute this module via pip in future.
-But as of now, manually install by doing
-1. download supermjo.py
-2. install the following dependency:
-  * py-applescript, pyobjc, inspect, numpy, pandas
 
+``pip install supermjo-py``
+
+Alternatively, manually installing is also easy, as this module consists only of a single file, ``supermjo.py``.
+You can download it from this git repository. You, however, need to install the following dependencies by yourself:
+* py-applescript, pyobjc, numpy, pandas
 
 
 ## Example
@@ -45,4 +45,4 @@ Documented in https://github.com/moykeen/supermjo-doc/wiki/Scripting
 
 ## Development phase
 
-I myself heavily use this module for machine learning. In my environment, it works stably.
+I myself heavily use this module for machine learning. In my environment, it works quite stably.
