@@ -10,7 +10,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.rst'), 'rb') as readme
 
 setup(
     name="supermjo-py",
-    version="0.1.0",
+    version="0.1.1",
     description='Python interface to Super-Mjograph',
     long_description=README.decode('utf-8'),
     url="https://github.com/moykeen/supermjo-py",
