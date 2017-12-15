@@ -409,7 +409,11 @@ def _plot_pd(x, activation, **param_dict):
         alt_index = np.array(x.index)
 
     # process body data
-    xv = x.values
+    # create a copy if a string value lies because it is overwritten by a number
+    if 'O' in [dt.kind for dt in x.dtypes]:
+        xv = x.values.copy()
+    else:
+        xv = x.values
     for i, t, v in zip(range(xv.shape[1]), x.dtypes, xv.T):
         if t.kind == 'O':
             mappings += [v.tolist()]
@@ -470,7 +474,10 @@ def _plot_pd_asmulti(x, activation, **param_dict):
         alt_index = np.array(x.index)
 
     # process body data
-    xv = x.values
+    if 'O' in [dt.kind for dt in x.dtypes]:
+        xv = x.values.copy()
+    else:
+        xv = x.values
     for i, t, v in zip(range(xv.shape[1]), x.dtypes, xv.T):
         if t.kind == 'O':
             mappings += [v.tolist()]
