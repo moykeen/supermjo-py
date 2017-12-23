@@ -32,7 +32,7 @@ class _MxAppleScript (applescript.AppleScript):
 
 
 _import_autox_cmd = """
-on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, mapping_list}
+on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, mapping_list, annotation_list, a_anchor_list, a_format_list, a_size_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -42,13 +42,13 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importWithAutoX importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list mapping mapping_list
+importWithAutoX importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list mapping mapping_list annotation annotation_list annotationAnchor a_anchor_list annotationFormat a_format_list annotationSize a_size_list
 end tell
 end run
 """
 
 _import_vsfirst_cmd = """
-on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, mapping_list}
+on run {activation, data_ptr, label_lists, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, mapping_list, annotation_list, a_anchor_list, a_format_list, a_size_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -58,13 +58,13 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importVSFirst importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list mapping mapping_list
+importVSFirst importer to data_ptr label label_lists xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list mapping mapping_list annotation annotation_list annotationAnchor a_anchor_list annotationFormat a_format_list annotationSize a_size_list
 end tell
 end run
 """
 
 _import_asmulticol_cmd = """
-on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, assignment_dict, mapping_list}
+on run {activation, data_ptr, arg_ncol, arg_label, xcoord_list, ycoord_list, color_list, style_list, dash_list, shape_list, line_list, mark_list, size_list, id_list, assignment_dict, mapping_list, annotation_list, a_anchor_list, a_format_list, a_size_list}
 tell application "SuperMjograph"
 if activation then
     activate
@@ -74,7 +74,7 @@ set fmid to frontmost of importer
 if fmid is -1 then
     figure importer
 end if
-importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list assignment assignment_dict mapping mapping_list
+importAsMultiColumn importer to data_ptr ncol arg_ncol label arg_label xcoord xcoord_list ycoord ycoord_list color color_list style style_list dash dash_list shape shape_list line line_list mark mark_list size size_list id id_list assignment assignment_dict mapping mapping_list annotation annotation_list annotationAnchor a_anchor_list annotationFormat a_format_list annotationSize a_size_list
 end tell
 end run
 """
@@ -205,7 +205,33 @@ def _make_additional_params(param_dict, n_col):
     else:
         ids = [-1] * n_col
 
-    return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids
+    if "annotation" in param_dict:
+        annotations = _force_to_list(param_dict["annotation"])
+        assert len(annotations) == n_col
+    else:
+        annotations = [False] * n_col
+
+    if "a_anchor" in param_dict:
+        a_anchors = _force_to_list(param_dict["a_anchor"])
+        assert len(a_anchors) == n_col
+    else:
+        a_anchors = [-1] * n_col
+
+    if "a_format" in param_dict:
+        a_formats = _force_to_list(param_dict["a_format"])
+        assert len(a_formats) == n_col
+    else:
+        a_formats = ['%a'] * n_col
+
+    if "a_size" in param_dict:
+        a_sizes = _force_to_list(param_dict["a_size"])
+        assert len(a_sizes) == n_col
+    else:
+        a_sizes = [12] * n_col
+
+
+    return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+        annotations, a_anchors, a_formats, a_sizes
 
 # decorator to validate figure id
 def _fig_id_check(func):
@@ -261,14 +287,16 @@ def _plot_np(x, activation, **param_dict):
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
         # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+    annotations, a_anchors, a_formats, a_sizes\
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
     _MxAppleScript(_import_autox_cmd).run(activation, x.T, labels,
                     xcoords, ycoords, colors, styles, dashes, shapes,
-                    lines, marks, sizes, ids, mappings)
+                    lines, marks, sizes, ids, mappings,
+                    annotations, a_anchors, a_formats, a_sizes)
 
 def _plot_np_twoarg(x, y, activation, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
@@ -332,14 +360,16 @@ def _plot_np_twoarg(x, y, activation, **param_dict):
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
         # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+    annotations, a_anchors, a_formats, a_sizes\
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
     _MxAppleScript(_import_vsfirst_cmd).run(activation, x.T, labels,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, mappings)
+        lines, marks, sizes, ids, mappings,
+        annotations, a_anchors, a_formats, a_sizes)
 
 def _plot_np_asmulti(x, activation, **param_dict):
     assert type(x) == np.ndarray, "only support Numpy ndarray"
@@ -373,7 +403,8 @@ def _plot_np_asmulti(x, activation, **param_dict):
         args = arg_string[arg_string.find('(') + 1:-1].split(',')
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+    annotations, a_anchors, a_formats, a_sizes\
                                 = _make_additional_params(param_dict, 1)
 
     # column assignment
@@ -385,7 +416,8 @@ def _plot_np_asmulti(x, activation, **param_dict):
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, x.T, n_col, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, assignment_list, mappings)
+        lines, marks, sizes, ids, assignment_list, mappings,
+        annotations, a_anchors, a_formats, a_sizes)
 
 
 #&& For pandas
@@ -446,13 +478,15 @@ def _plot_pd(x, activation, **param_dict):
         base_label = args[0]
         labels = [base_label + ", " + str(col) for col in x.columns]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+    annotations, a_anchors, a_formats, a_sizes\
                                 = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     _MxAppleScript(_import_vsfirst_cmd).run(activation, y.T, labels,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, mappings)
+        lines, marks, sizes, ids, mappings,
+        annotations, a_anchors, a_formats, a_sizes)
 
 
 def _plot_pd_asmulti(x, activation, **param_dict):
@@ -509,7 +543,8 @@ def _plot_pd_asmulti(x, activation, **param_dict):
         args = arg_string[arg_string.find('(') + 1:-1].split(',')
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids \
+    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
+    annotations, a_anchors, a_formats, a_sizes\
                                 = _make_additional_params(param_dict, 1)
 
     # column assignment
@@ -525,7 +560,8 @@ def _plot_pd_asmulti(x, activation, **param_dict):
     # finally, invoke the import script
     _MxAppleScript(_import_asmulticol_cmd).run(activation, y.T, n_col+1, label,
         xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, assignment_list, mappings)
+        lines, marks, sizes, ids, assignment_list, mappings,
+        annotations, a_anchors, a_formats, a_sizes)
 
 #%% public functions
 
@@ -607,55 +643,3 @@ def plot(x, y=None, single_series=False, activation=False, **param_dict):
 
 
     raise ValueError("Could not plot your data")
-
-
-
-#%% test code
-
-
-if False:
-# if __name__ == "main":
-
-    # x1 = np.tile(np.arange(100), (4, 2)).T
-    # figure(1)
-    # plot(x1, activation=True, too_many_col_check=False)
-    #
-    # df1 = pd.DataFrame(data=np.random.randn(10, 3))
-    # df1.columns = ["abc", "def", "xyz"]
-    # df1.set_index(pd.date_range("2017-08-30", periods=len(df1)), inplace=True)
-    # figure(2)
-    # plot(df1, line=[True, False, True], id=[1, 2, 3])
-
-    df2 = pd.DataFrame(data=np.random.randn(5, 3), index=["h1", "h2", "h3", "h4", "h5"])
-    df2.columns = ["abc", "def", "xyz"]
-    df2["abc"] = ["III", "JJJ", "KKk", "hoo", "gee"]
-
-
-    n = 5
-    x1, y1 = np.meshgrid(np.arange(n), np.arange(n))
-    x1 = x1.ravel()
-    y1 = y1.ravel()
-    # strength = np.random.randint(0, 100, len(x1))
-    strength = np.zeros((n, n))
-    for i, j in itertools.product(range(n), range(n)):
-        strength[i, j] = i - j
-    strength = strength.ravel()
-
-    bubble = np.zeros((n, n))
-    for i, j in itertools.product(range(n), range(n)):
-        # bubble[i, j] = i * j
-        bubble[i, j] = np.random.randn()
-    bubble = bubble.ravel()
-
-    plot(np.stack((x1, y1, bubble, strength)).T, single_series=True)
-
-    x = np.random.randn(5, 4)
-    plot(x, assignment={"mainX": 0, "mainY": 1, "bubbleRadius": 2}, style="color-bubble")
-
-    xpd = pd.DataFrame(x, columns=["aa", "bb", "cc", "dd"])
-    xpd["dd"] = ["good", "better", "bad", "great", "worst"]
-    plot(xpd, color=10, assignment={"mainX": "index", "mainY": "bb", "bubbleRadius": 2, "colorStrength": "dd"}, style="color-bubble")
-
-
-    # plot(x1, np.stack((x1, y1, strength)).T)
-    # plot(np., is_single_series=True)
