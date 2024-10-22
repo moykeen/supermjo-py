@@ -1,7 +1,6 @@
-# coding=utf-8
 """
 interface to SuperMjograph
-(C) Makoto Tanahashi, 2017/08/23
+(C) Makoto Tanahashi, 2017-2024
 
     dependent modules: py-applescript, pyobjc, numpy, pandas, inspect
 """
@@ -12,11 +11,11 @@ import applescript
 import inspect
 from functools import wraps
 
-#%% define applescript commands
+# region define applescript commands
+
 
 # to deal with huge array efficiently
-class _MxCodecs (applescript.Codecs):
-
+class _MxCodecs(applescript.Codecs):
     def __init__(self):
         super().__init__()
 
@@ -26,7 +25,8 @@ class _MxCodecs (applescript.Codecs):
     def packnumpy(self, val):
         return self._packbytes(applescript.kae.typeData, val.data.tobytes())
 
-class _MxAppleScript (applescript.AppleScript):
+
+class _MxAppleScript(applescript.AppleScript):
     # replace codecs by mine
     _codecs = _MxCodecs()
 
@@ -109,15 +109,22 @@ end run
 # default col check threshold
 _col_check_default_th = 128
 
-#%% utility functions
+# endregion
 
-# check if column is accidently huge
+# region utility functions
+
+
+# check if column is accidentally huge
 def _col_check(n_col, too_many_col_check):
     if too_many_col_check and (n_col >= too_many_col_check):
-        raise ValueError("""
+        raise ValueError(
+            """
 Your array has a very large number of columns (%d columns).
 Haven't you mistaken row and colum?
-If this is as you intended, invoke with too_many_col_check=False""" % (n_col))
+If this is as you intended, invoke with too_many_col_check=False"""
+            % (n_col)
+        )
+
 
 # include into a list if the arg is scalar
 def _force_to_list(scalar_or_list):
@@ -126,15 +133,30 @@ def _force_to_list(scalar_or_list):
     else:
         return [scalar_or_list]
 
+
 # interpret codes
-_single_color_codes = {'r':0, 'b':1, 'g':2, 'p':3, 'o':4, 'c':5, 'y':6, 'n':7, 'm':8, 'e':9}
-_single_shape_codes = {'o':0, 's':1, '^':2, 'v':3, 'd':4, '*':5, 'x':6, '+':7}
-_line_dash_codes = {'-':0, '..':1, '--':2, '-.':3, '.. ..':4, '- -':5}
+_single_color_codes = {
+    "r": 0,
+    "b": 1,
+    "g": 2,
+    "p": 3,
+    "o": 4,
+    "c": 5,
+    "y": 6,
+    "n": 7,
+    "m": 8,
+    "e": 9,
+}
+_single_shape_codes = {"o": 0, "s": 1, "^": 2, "v": 3, "d": 4, "*": 5, "x": 6, "+": 7}
+_line_dash_codes = {"-": 0, "..": 1, "--": 2, "-.": 3, ".. ..": 4, "- -": 5}
+
+
 def _interpret_code(mixed_raw_and_coded_list, code_dict):
     for i in range(len(mixed_raw_and_coded_list)):
         if isinstance(mixed_raw_and_coded_list[i], str):
             mixed_raw_and_coded_list[i] = code_dict.get(mixed_raw_and_coded_list[i], 0)
     return mixed_raw_and_coded_list
+
 
 # make additional parameters
 def _make_additional_params(param_dict, n_col):
@@ -221,7 +243,7 @@ def _make_additional_params(param_dict, n_col):
         a_formats = _force_to_list(param_dict["a_format"])
         assert len(a_formats) == n_col
     else:
-        a_formats = ['%a'] * n_col
+        a_formats = ["%a"] * n_col
 
     if "a_size" in param_dict:
         a_sizes = _force_to_list(param_dict["a_size"])
@@ -229,26 +251,42 @@ def _make_additional_params(param_dict, n_col):
     else:
         a_sizes = [12] * n_col
 
+    return (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
 
-    return xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-        annotations, a_anchors, a_formats, a_sizes
 
 # decorator to validate figure id
 def _fig_id_check(func):
     @wraps(func)
     def wrapper(fig_id=0):
-        if type(fig_id) != int:
+        if type(fig_id) is not int:
             raise ValueError("figure id must be integer")
         return func(fig_id)
+
     return wrapper
 
 
-#%% internal functions that actually perform plot
+# endregion
 
-#&& For numpy
+# region internal functions that actually perform plot (for numpy)
+
 
 def _plot_np(x, activation, **param_dict):
-    assert type(x) == np.ndarray, "only support Numpy ndarray"
+    assert type(x) is np.ndarray, "only support Numpy ndarray"
     assert x.ndim <= 2, "high dimensional array is not supported"
 
     # check size
@@ -259,13 +297,13 @@ def _plot_np(x, activation, **param_dict):
 
     # string array is mapped
     mappings = None
-    if x.dtype.kind in {'U', 'S'}:
-        xm = np.tile(np.arange(len(x)), (x.shape[1], 1)).T.astype(np.float)
+    if x.dtype.kind in {"U", "S"}:
+        xm = np.tile(np.arange(len(x)), (x.shape[1], 1)).T.astype(float)
         mappings = x.T.tolist()
         x = xm
 
-    elif x.dtype != np.float:
-        x = x.astype(np.float)
+    elif x.dtype != float:
+        x = x.astype(float)
 
     # make labels for legend
     if "label" in param_dict:
@@ -278,29 +316,58 @@ def _plot_np(x, activation, **param_dict):
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[2]
         arg_string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        args = arg_string[arg_string.find('(') + 1:-1].split(',')
+        args = arg_string[arg_string.find("(") + 1 : -1].split(",")
         base_label = args[0]
 
         if n_col == 1:
             labels = [base_label]
         else:
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
-        # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-    annotations, a_anchors, a_formats, a_sizes\
-                                = _make_additional_params(param_dict, n_col)
+    (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    ) = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
-    _MxAppleScript(_import_autox_cmd).run(activation, x.T, labels,
-                    xcoords, ycoords, colors, styles, dashes, shapes,
-                    lines, marks, sizes, ids, mappings,
-                    annotations, a_anchors, a_formats, a_sizes)
+    _MxAppleScript(_import_autox_cmd).run(
+        activation,
+        x.T,
+        labels,
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        mappings,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
+
 
 def _plot_np_twoarg(x, y, activation, **param_dict):
-    assert type(x) == np.ndarray, "only support Numpy ndarray"
-    assert type(y) == np.ndarray, "only support Numpy ndarray"
+    assert type(x) is np.ndarray, "only support Numpy ndarray"
+    assert type(y) is np.ndarray, "only support Numpy ndarray"
     assert x.ndim <= 2, "high dimensional array is not supported"
     assert y.ndim <= 2, "high dimensional array is not supported"
 
@@ -321,26 +388,25 @@ def _plot_np_twoarg(x, y, activation, **param_dict):
 
     # string array is mapped
     mappings = []
-    if x.dtype.kind in {'U', 'S'}:
-        xm = np.atleast_2d(np.arange(len(x))).T.astype(np.float)
+    if x.dtype.kind in {"U", "S"}:
+        xm = np.atleast_2d(np.arange(len(x))).T.astype(float)
         mappings += x.T.tolist()
         x = xm
     else:
         mappings += [[]]
-        if x.dtype != np.float:
-            x = x.astype(np.float)
+        if x.dtype != float:
+            x = x.astype(float)
 
-    if y.dtype.kind in {'U', 'S'}:
-        ym = np.tile(np.arange(len(y)), (y.shape[1], 1)).T.astype(np.float)
+    if y.dtype.kind in {"U", "S"}:
+        ym = np.tile(np.arange(len(y)), (y.shape[1], 1)).T.astype(float)
         mappings += y.T.tolist()
         y = ym
     else:
         mappings += [[] for _ in range(y.shape[1])]
-        if y.dtype != np.float:
-            y = y.astype(np.float)
+        if y.dtype != float:
+            y = y.astype(float)
 
     x = np.concatenate((x, y), axis=1)
-
 
     # make labels for legend
     if "label" in param_dict:
@@ -351,28 +417,57 @@ def _plot_np_twoarg(x, y, activation, **param_dict):
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[2]
         arg_string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        args = arg_string[arg_string.find('(') + 1:-1].split(',')
+        args = arg_string[arg_string.find("(") + 1 : -1].split(",")
         base_label = args[0] + " vs. " + args[1]
 
         if n_col == 1:
             labels = [base_label]
         else:
             labels = [base_label + ", %d-th col" % j for j in range(n_col)]
-        # print(labels)
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-    annotations, a_anchors, a_formats, a_sizes\
-                                = _make_additional_params(param_dict, n_col)
+    (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    ) = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
     # (the array must be transposed to conform to mjograph's format)
-    _MxAppleScript(_import_vsfirst_cmd).run(activation, x.T, labels,
-        xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, mappings,
-        annotations, a_anchors, a_formats, a_sizes)
+    _MxAppleScript(_import_vsfirst_cmd).run(
+        activation,
+        x.T,
+        labels,
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        mappings,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
+
 
 def _plot_np_asmulti(x, activation, **param_dict):
-    assert type(x) == np.ndarray, "only support Numpy ndarray"
+    assert type(x) is np.ndarray, "only support Numpy ndarray"
 
     # check size
     if x.ndim == 1:
@@ -382,13 +477,13 @@ def _plot_np_asmulti(x, activation, **param_dict):
 
     # string array is mapped
     mappings = None
-    if x.dtype.kind in {'U', 'S'}:
-        xm = np.tile(np.arange(len(x)), (x.shape[1], 1)).T.astype(np.float)
+    if x.dtype.kind in {"U", "S"}:
+        xm = np.tile(np.arange(len(x)), (x.shape[1], 1)).T.astype(float)
         mappings = x.T.tolist()
         x = xm
 
-    elif x.dtype != np.float:
-        x = x.astype(np.float)
+    elif x.dtype != float:
+        x = x.astype(float)
 
     # make labels for legend
     if "label" in param_dict:
@@ -400,12 +495,25 @@ def _plot_np_asmulti(x, activation, **param_dict):
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[2]
         arg_string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        args = arg_string[arg_string.find('(') + 1:-1].split(',')
+        args = arg_string[arg_string.find("(") + 1 : -1].split(",")
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-    annotations, a_anchors, a_formats, a_sizes\
-                                = _make_additional_params(param_dict, 1)
+    (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    ) = _make_additional_params(param_dict, 1)
 
     # column assignment
     assignment = param_dict.get("assignment", {})
@@ -414,25 +522,45 @@ def _plot_np_asmulti(x, activation, **param_dict):
         assignment_list.extend([k, v])
 
     # finally, invoke the import script
-    _MxAppleScript(_import_asmulticol_cmd).run(activation, x.T, n_col, label,
-        xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, assignment_list, mappings,
-        annotations, a_anchors, a_formats, a_sizes)
+    _MxAppleScript(_import_asmulticol_cmd).run(
+        activation,
+        x.T,
+        n_col,
+        label,
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        assignment_list,
+        mappings,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
 
 
-#&& For pandas
+# endregion
 
+
+# region For pandas
 def _plot_pd(x, activation, **param_dict):
-    assert type(x) == pd.DataFrame, "support only Pandas DataFrame"
+    assert type(x) is pd.DataFrame, "support only Pandas DataFrame"
 
     # make equivalent numpy array index for datetime, non-numerical values
     mappings = []
     alt_index = None
-    if x.index.dtype.kind == 'O':
+    if x.index.dtype.kind == "O":
         mappings += [x.index.tolist()]
         alt_index = np.arange(len(x))
 
-    elif type(x.index) == pd.DatetimeIndex:
+    elif type(x.index) is pd.DatetimeIndex:
         mappings += [[]]
         alt_index = np.array(x.index.astype(np.int64) // 10**9)
 
@@ -442,12 +570,12 @@ def _plot_pd(x, activation, **param_dict):
 
     # process body data
     # create a copy if a string value lies because it is overwritten by a number
-    if 'O' in [dt.kind for dt in x.dtypes]:
+    if "O" in [dt.kind for dt in x.dtypes]:
         xv = x.values.copy()
     else:
         xv = x.values
     for i, t, v in zip(range(xv.shape[1]), x.dtypes, xv.T):
-        if t.kind == 'O':
+        if t.kind == "O":
             mappings += [v.tolist()]
             xv[..., i] = np.arange(len(x))
         else:
@@ -456,10 +584,9 @@ def _plot_pd(x, activation, **param_dict):
     # combine
     y = np.concatenate((alt_index[:, np.newaxis], xv), axis=1)
 
-
     # data must be float
-    if y.dtype != np.float:
-        y = y.astype(np.float)
+    if y.dtype != float:
+        y = y.astype(float)
 
     # check size
     n_row, n_col = x.shape
@@ -474,32 +601,61 @@ def _plot_pd(x, activation, **param_dict):
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[2]
         arg_string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        args = arg_string[arg_string.find('(') + 1:-1].split(',')
+        args = arg_string[arg_string.find("(") + 1 : -1].split(",")
         base_label = args[0]
         labels = [base_label + ", " + str(col) for col in x.columns]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-    annotations, a_anchors, a_formats, a_sizes\
-                                = _make_additional_params(param_dict, n_col)
+    (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    ) = _make_additional_params(param_dict, n_col)
 
     # finally, invoke the import script
-    _MxAppleScript(_import_vsfirst_cmd).run(activation, y.T, labels,
-        xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, mappings,
-        annotations, a_anchors, a_formats, a_sizes)
+    _MxAppleScript(_import_vsfirst_cmd).run(
+        activation,
+        y.T,
+        labels,
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        mappings,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
 
 
 def _plot_pd_asmulti(x, activation, **param_dict):
-    assert type(x) == pd.DataFrame, "support only Pandas DataFrame"
+    assert type(x) is pd.DataFrame, "support only Pandas DataFrame"
 
     # make equivalent numpy array index for datetime, non-numerical values
     mappings = []
     alt_index = None
-    if x.index.dtype.kind == 'O':
+    if x.index.dtype.kind == "O":
         mappings += [x.index.tolist()]
         alt_index = np.arange(len(x))
 
-    elif type(x.index) == pd.DatetimeIndex:
+    elif type(x.index) is pd.DatetimeIndex:
         mappings += [[]]
         alt_index = np.array(x.index.astype(np.int64) // 10**9)
 
@@ -508,12 +664,12 @@ def _plot_pd_asmulti(x, activation, **param_dict):
         alt_index = np.array(x.index)
 
     # process body data
-    if 'O' in [dt.kind for dt in x.dtypes]:
+    if "O" in [dt.kind for dt in x.dtypes]:
         xv = x.values.copy()
     else:
         xv = x.values
     for i, t, v in zip(range(xv.shape[1]), x.dtypes, xv.T):
-        if t.kind == 'O':
+        if t.kind == "O":
             mappings += [v.tolist()]
             xv[..., i] = np.arange(len(x))
         else:
@@ -523,8 +679,8 @@ def _plot_pd_asmulti(x, activation, **param_dict):
     y = np.concatenate((alt_index[:, np.newaxis], xv), axis=1)
 
     # data must be float
-    if y.dtype != np.float:
-        y = y.astype(np.float)
+    if y.dtype != float:
+        y = y.astype(float)
 
     # check size
     n_row, n_col = x.shape
@@ -540,12 +696,25 @@ def _plot_pd_asmulti(x, activation, **param_dict):
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[2]
         arg_string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        args = arg_string[arg_string.find('(') + 1:-1].split(',')
+        args = arg_string[arg_string.find("(") + 1 : -1].split(",")
         label = args[0]
 
-    xcoords, ycoords, colors, styles, dashes, shapes, lines, marks, sizes, ids,\
-    annotations, a_anchors, a_formats, a_sizes\
-                                = _make_additional_params(param_dict, 1)
+    (
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    ) = _make_additional_params(param_dict, 1)
 
     # column assignment
     assignment = param_dict.get("assignment", {})
@@ -558,18 +727,41 @@ def _plot_pd_asmulti(x, activation, **param_dict):
         assignment_list.extend([k, v_num])
 
     # finally, invoke the import script
-    _MxAppleScript(_import_asmulticol_cmd).run(activation, y.T, n_col+1, label,
-        xcoords, ycoords, colors, styles, dashes, shapes,
-        lines, marks, sizes, ids, assignment_list, mappings,
-        annotations, a_anchors, a_formats, a_sizes)
+    _MxAppleScript(_import_asmulticol_cmd).run(
+        activation,
+        y.T,
+        n_col + 1,
+        label,
+        xcoords,
+        ycoords,
+        colors,
+        styles,
+        dashes,
+        shapes,
+        lines,
+        marks,
+        sizes,
+        ids,
+        assignment_list,
+        mappings,
+        annotations,
+        a_anchors,
+        a_formats,
+        a_sizes,
+    )
 
-#%% public functions
+
+# endregion
+
+# region public functions
+
 
 def clear():
     """
     Clear all of the imported series' from the frontmost figure.
     """
     _MxAppleScript(_clear_cmd).run()
+
 
 @_fig_id_check
 def figure(fig_id=0):
@@ -580,6 +772,7 @@ def figure(fig_id=0):
     :param int fig_id: figure ID (0 or 1 to 1023)
     """
     _MxAppleScript(_figure_cmd).run(fig_id)
+
 
 @_fig_id_check
 def close(fig_id=0):
@@ -599,47 +792,49 @@ def plot(x, y=None, single_series=False, activation=False, **param_dict):
 
     if len(x) == 0:
         import warnings
+
         warnings.warn("Can't plot an empty array")
         return
-
 
     if "assignment" in param_dict:
         single_series = True
 
     # preprocessing to unify types
-    if type(x) == pd.Series:
+    if type(x) is pd.Series:
         x = x.to_frame()
 
-    if type(x) == list or type(x) == tuple:
+    if type(x) is list or type(x) is tuple:
         x = np.array(x)
 
-    if y is not None and (type(y) == list or type(y) == tuple):
+    if y is not None and (type(y) is list or type(y) is tuple):
         y = np.array(y)
 
     # treat as a single multi-column series
     if single_series:
-        assert y == None
-        if type(x) == np.ndarray:
+        assert y is None
+        if type(x) is np.ndarray:
             _plot_np_asmulti(x, activation, **param_dict)
-        elif type(x) == pd.DataFrame:
+        elif type(x) is pd.DataFrame:
             _plot_pd_asmulti(x, activation, **param_dict)
 
         return
 
-    if type(x) == np.ndarray:
+    if type(x) is np.ndarray:
         # if y is given, y is plotted vs. x, else x is plotted vs. the array's indices
-        if y is not None and type(y) == np.ndarray:
+        if y is not None and type(y) is np.ndarray:
             _plot_np_twoarg(x, y, activation, **param_dict)
         else:
             _plot_np(x, activation, **param_dict)
 
         return
 
-    elif type(x) == pd.DataFrame:
+    elif type(x) is pd.DataFrame:
         # plot contents vs. the dataframe's index
         _plot_pd(x, activation, **param_dict)
 
         return
 
-
     raise ValueError("Could not plot your data")
+
+
+# endregion
